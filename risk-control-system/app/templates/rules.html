@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}规则管理 - 电商风险控制{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-sliders"></i> 规则管理</h4>
+
+<!-- 操作栏 -->
+<div class="d-flex justify-content-between mb-3">
+    <select id="statusFilter" class="form-select w-auto" onchange="loadRules()">
+        <option value="">全部状态</option>
+        <option value="enabled">已启用</option>
+        <option value="disabled">已禁用</option>
+    </select>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" onclick="resetForm()">
+        <i class="bi bi-plus-lg"></i> 新增规则
+    </button>
+</div>
+
+<!-- 规则列表 -->
+<table class="table table-hover bg-white rounded shadow-sm">
+    <thead class="table-light">
+        <tr>
+            <th>规则编码</th><th>规则名称</th><th>状态</th><th>优先级</th>
+            <th>分值</th><th>命中次数</th><th>更新时间</th><th>操作</th>
+        </tr>
+    </thead>
+    <tbody id="ruleTableBody">
+        <tr><td colspan="8" class="text-center text-muted">加载中...</td></tr>
+    </tbody>
+</table>
+
+<!-- 新增/编辑弹窗 -->
+<div class="modal fade" id="ruleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ruleModalTitle">新增规则</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editRuleId">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">规则编码</label>
+                        <input id="ruleCode" class="form-control" placeholder="RULE_XXX">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">规则名称</label>
+                        <input id="ruleName" class="form-control" placeholder="规则名称">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">优先级</label><input id="rulePriority" type="number" class="form-control" value="50">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">分值</label><input id="ruleScore" type="number" class="form-control" value="10">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">状态</label>
+                        <select id="ruleStatus" class="form-select">
+                            <option value="enabled">启用</option><option value="disabled">禁用</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">命中描述</label>
+                        <input id="ruleDesc" class="form-control" placeholder="命中时显示的描述文字">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">条件JSON</label>
+                        <textarea id="ruleCondition" class="form-control" rows="6" style="font-family:monospace;" placeholder='{"field":"refund_rate","op":">","value":0.3}'></textarea>
+                        <small class="text-muted">支持 and / or / &gt; &lt; &gt;= &lt;= == != in</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="saveRule()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    let allRules = [];  // 全局缓存
+
+    function loadRules() {
+        const status = document.getElementById('statusFilter').value;
+        const url = status ? `/api/risk/rules?rule_status=${status}` : '/api/risk/rules';
+        fetch(url).then(r => r.json()).then(data => {
+            allRules = data;  // 缓存
+            const tbody = document.getElementById('ruleTableBody');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">暂无规则</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(r => `
+                <tr>
+                    <td><code>${r.rule_code}</code></td>
+                    <td>${r.rule_name}</td>
+                    <td><span class="badge ${r.rule_status==='enabled'?'bg-success':'bg-secondary'}">${r.rule_status==='enabled'?'启用':'禁用'}</span></td>
+                    <td>${r.priority}</td>
+                    <td>${r.score}</td>
+                    <td>${r.hit_count}</td>
+                    <td>${r.updated_at}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary" data-edit-id="${r.id}" title="编辑"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-warning" data-toggle-id="${r.id}" data-toggle-status="${r.rule_status==='enabled'?'disabled':'enabled'}">${r.rule_status==='enabled'?'禁用':'启用'}</button>
+                        <button class="btn btn-sm btn-outline-danger" data-delete-id="${r.id}"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            // 绑定事件
+            tbody.querySelectorAll('[data-edit-id]').forEach(btn => btn.onclick = function() { editRule(parseInt(this.dataset.editId)); });
+            tbody.querySelectorAll('[data-toggle-id]').forEach(btn => btn.onclick = function() { toggleRule(parseInt(this.dataset.toggleId), this.dataset.toggleStatus); });
+            tbody.querySelectorAll('[data-delete-id]').forEach(btn => btn.onclick = function() { deleteRule(parseInt(this.dataset.deleteId)); });
+        });
+    }
+
+    function resetForm() {
+        document.getElementById('editRuleId').value = '';
+        document.getElementById('ruleCode').value = '';
+        document.getElementById('ruleName').value = '';
+        document.getElementById('rulePriority').value = 50;
+        document.getElementById('ruleScore').value = 10;
+        document.getElementById('ruleStatus').value = 'enabled';
+        document.getElementById('ruleDesc').value = '';
+        document.getElementById('ruleCondition').value = '';
+        document.getElementById('ruleModalTitle').textContent = '新增规则';
+    }
+
+    function editRule(id) {
+        const r = allRules.find(x => x.id === id);
+        if (!r) return;
+        document.getElementById('editRuleId').value = r.id;
+        document.getElementById('ruleCode').value = r.rule_code;
+        document.getElementById('ruleName').value = r.rule_name;
+        document.getElementById('rulePriority').value = r.priority;
+        document.getElementById('ruleScore').value = r.score;
+        document.getElementById('ruleStatus').value = r.rule_status;
+        document.getElementById('ruleDesc').value = r.description || '';
+        document.getElementById('ruleCondition').value = JSON.stringify(r.condition_json, null, 2);
+        document.getElementById('ruleModalTitle').textContent = '编辑规则';
+        new bootstrap.Modal('#ruleModal').show();
+    }
+
+    function saveRule() {
+        const id = document.getElementById('editRuleId').value;
+        const body = {
+            rule_code: document.getElementById('ruleCode').value,
+            rule_name: document.getElementById('ruleName').value,
+            priority: parseInt(document.getElementById('rulePriority').value),
+            score: parseInt(document.getElementById('ruleScore').value),
+            rule_status: document.getElementById('ruleStatus').value,
+            description: document.getElementById('ruleDesc').value,
+            condition_json: JSON.parse(document.getElementById('ruleCondition').value),
+        };
+
+        if (id) {
+            // 更新
+            fetch(`/api/risk/rules/update?rule_id=${id}`, {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+            }).then(r => r.json()).then(d => { alert(d.message); bootstrap.Modal.getInstance('#ruleModal').hide(); loadRules(); });
+        } else {
+            // 新增
+            fetch('/api/risk/rules', {
+                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+            }).then(r => r.json()).then(d => { alert(d.message); bootstrap.Modal.getInstance('#ruleModal').hide(); loadRules(); });
+        }
+    }
+
+    function toggleRule(id, status) {
+        fetch(`/api/risk/rules/status?rule_id=${id}`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({rule_status: status})
+        }).then(r => r.json()).then(d => { alert(d.message); loadRules(); });
+    }
+
+    function deleteRule(id) {
+        if (!confirm('确定删除此规则？')) return;
+        fetch('/api/risk/rules/delete', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({rule_ids: [id]})
+        }).then(r => r.json()).then(d => { alert(d.message); loadRules(); });
+    }
+
+    loadRules();
+</script>
+{% endblock %}

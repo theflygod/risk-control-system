@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}黑名单管理 - 电商风险控制{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-shield-x"></i> 黑名单管理</h4>
+
+<div class="d-flex justify-content-between mb-3">
+    <div class="d-flex gap-2">
+        <select id="typeFilter" class="form-select w-auto" onchange="loadBlacklist()">
+            <option value="">全部类型</option>
+            <option value="user_id">用户ID</option><option value="ip_address">IP地址</option>
+            <option value="device_id">设备ID</option><option value="address_keyword">地址关键词</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#blModal">
+        <i class="bi bi-plus-lg"></i> 新增
+    </button>
+</div>
+
+<table class="table table-hover bg-white rounded shadow-sm">
+    <thead class="table-light">
+        <tr><th>ID</th><th>类型</th><th>命中值</th><th>备注</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+    </thead>
+    <tbody id="blTableBody">
+        <tr><td colspan="7" class="text-center text-muted">加载中...</td></tr>
+    </tbody>
+</table>
+
+<!-- 新增弹窗 -->
+<div class="modal fade" id="blModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">新增黑名单</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">类型</label>
+                    <select id="blType" class="form-select">
+                        <option value="user_id">用户ID</option><option value="ip_address">IP地址</option>
+                        <option value="device_id">设备ID</option><option value="address_keyword">地址关键词</option>
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label">命中值</label><input id="blValue" class="form-control"></div>
+                <div class="mb-3"><label class="form-label">备注</label><input id="blRemark" class="form-control"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="addBlacklist()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    function loadBlacklist() {
+        const t = document.getElementById('typeFilter').value;
+        const url = t ? `/api/risk/blacklists?blacklist_type=${t}` : '/api/risk/blacklists';
+        fetch(url).then(r => r.json()).then(data => {
+            const tbody = document.getElementById('blTableBody');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">暂无黑名单记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(b => `
+                <tr>
+                    <td>${b.id}</td><td><span class="badge bg-dark">${b.blacklist_type}</span></td>
+                    <td><code>${b.blacklist_value}</code></td><td>${b.remark||'-'}</td>
+                    <td>${b.status}</td><td>${b.created_at}</td>
+                    <td><button class="btn btn-sm btn-outline-danger" onclick="delBlacklist(${b.id})"><i class="bi bi-trash"></i></button></td>
+                </tr>
+            `).join('');
+        });
+    }
+    function addBlacklist() {
+        fetch('/api/risk/blacklists', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                blacklist_type: document.getElementById('blType').value,
+                blacklist_value: document.getElementById('blValue').value,
+                remark: document.getElementById('blRemark').value,
+            })
+        }).then(r => r.json()).then(d => {
+            alert(d.message);
+            bootstrap.Modal.getInstance('#blModal').hide();
+            loadBlacklist();
+        });
+    }
+    function delBlacklist(id) {
+        if (!confirm('确定删除？')) return;
+        fetch('/api/risk/blacklists/delete', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({blacklist_ids: [id]})
+        }).then(r => r.json()).then(d => { alert(d.message); loadBlacklist(); });
+    }
+    loadBlacklist();
+</script>
+{% endblock %}

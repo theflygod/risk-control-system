@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}首页 - 电商风险控制{% endblock %}
+{% block content %}
+
+<div class="text-center py-5">
+    <i class="bi bi-shield-check" style="font-size:5rem; color: #3b82f6;"></i>
+    <h2 class="mt-3">电商风险控制平台</h2>
+    <p class="text-muted">覆盖风险识别、规则判断、人工复核、处置留痕和结果查询的完整闭环</p>
+    <hr class="w-50 mx-auto">
+    <div class="row g-3 mt-3 w-75 mx-auto">
+        <div class="col-md-4">
+            <a href="/check" class="text-decoration-none">
+                <div class="card border-primary h-100"><div class="card-body text-center">
+                    <i class="bi bi-search text-primary" style="font-size:2rem;"></i>
+                    <h5 class="mt-2">风险检查</h5><small class="text-muted">发起风控事件评估</small>
+                </div></div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="/rules" class="text-decoration-none">
+                <div class="card border-success h-100"><div class="card-body text-center">
+                    <i class="bi bi-sliders text-success" style="font-size:2rem;"></i>
+                    <h5 class="mt-2">规则管理</h5><small class="text-muted">维护 24 条风险规则</small>
+                </div></div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="/dashboard" class="text-decoration-none">
+                <div class="card border-warning h-100"><div class="card-body text-center">
+                    <i class="bi bi-bar-chart text-warning" style="font-size:2rem;"></i>
+                    <h5 class="mt-2">运营看板</h5><small class="text-muted">查看全局风险态势</small>
+                </div></div>
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}案件详情 - 电商风险控制{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-file-earmark-text"></i> 案件详情 <span id="caseIdLabel"></span></h4>
+
+<div id="caseContent">
+    <div class="text-center py-5 text-muted">
+        <div class="spinner-border"></div><p class="mt-2">加载中...</p>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    const caseId = {{ case_id }};
+
+    function loadDetail() {
+        fetch(`/api/risk/cases/${caseId}`)
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('caseIdLabel').textContent = `#${d.case_id}`;
+            const badge = (lvl) => {
+                const map = {low:'bg-success', medium:'bg-warning', high:'bg-danger'};
+                return `<span class="badge ${map[lvl]||'bg-secondary'}">${lvl}</span>`;
+            };
+            document.getElementById('caseContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <!-- 评估结果 -->
+                        <div class="card mb-3">
+                            <div class="card-header"><strong>风险评估结果</strong></div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col"><h2 class="text-primary">${d.assessment.risk_score}</h2><small>风险评分</small></div>
+                                    <div class="col"><h4>${badge(d.assessment.risk_level)}</h4><small>风险等级</small></div>
+                                    <div class="col"><h4><span class="badge bg-info">${d.assessment.decision}</span></h4><small>处理建议</small></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 命中规则 -->
+                        <div class="card mb-3">
+                            <div class="card-header"><strong>命中规则 (${d.rule_hits.length}条)</strong></div>
+                            <div class="card-body">
+                                ${d.rule_hits.length ? `<table class="table table-sm">
+                                    <thead><tr><th>规则名称</th><th>编码</th><th>分值</th><th>原因</th></tr></thead>
+                                    <tbody>${d.rule_hits.map(h => `
+                                        <tr><td>${h.rule_name}</td><td><code>${h.rule_code}</code></td><td>${h.hit_score}</td><td>${h.hit_message}</td></tr>
+                                    `).join('')}</tbody>
+                                </table>` : '<p class="text-muted mb-0">无命中规则（低风险放行）</p>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <!-- 案件状态 -->
+                        <div class="card mb-3">
+                            <div class="card-header"><strong>案件信息</strong></div>
+                            <div class="card-body">
+                                <p><strong>状态:</strong> <span class="badge bg-primary">${d.case_status}</span></p>
+                                <p><strong>用户:</strong> ${d.user_id}</p>
+                                <p><strong>订单:</strong> ${d.order_id||'-'}</p>
+                                <p><strong>审核人:</strong> ${d.reviewer_id||'-'}</p>
+                                <p><strong>审核结果:</strong> ${d.review_result||'-'}</p>
+                            </div>
+                        </div>
+
+                        <!-- 审核操作 -->
+                        ${d.case_status === 'pending' ? `
+                        <div class="card mb-3 border-warning">
+                            <div class="card-header bg-warning text-dark"><strong>审核操作</strong></div>
+                            <div class="card-body">
+                                <textarea id="reviewRemark" class="form-control mb-2" rows="3" placeholder="审核备注..."></textarea>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-success flex-grow-1" onclick="doReview('approved')"><i class="bi bi-check-lg"></i> 通过</button>
+                                    <button class="btn btn-danger flex-grow-1" onclick="doReview('rejected')"><i class="bi bi-x-lg"></i> 拒绝</button>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <!-- 审核日志 -->
+                        <div class="card">
+                            <div class="card-header"><strong>审核日志</strong></div>
+                            <div class="card-body">
+                                ${d.review_logs.length ? d.review_logs.map(l => `
+                                    <div class="border-bottom pb-2 mb-2">
+                                        <small class="text-muted">${l.created_at}</small><br>
+                                        <strong>${l.operator_id}</strong> ${l.action_type === 'approve' ? '✅ 通过' : '❌ 拒绝'}<br>
+                                        ${l.action_remark ? `<span class="text-muted">${l.action_remark}</span>` : ''}
+                                    </div>
+                                `).join('') : '<p class="text-muted mb-0">暂无审核记录</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function doReview(result) {
+        const remark = document.getElementById('reviewRemark').value;
+        fetch('/api/risk/cases/review', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({case_id: caseId, review_result: result, review_remark: remark})
+        }).then(r => r.json()).then(d => {
+            alert(d.message); loadDetail();
+        });
+    }
+
+    loadDetail();
+</script>
+{% endblock %}

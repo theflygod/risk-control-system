@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}案件管理 - 电商风险控制{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-folder2-open"></i> 案件管理</h4>
+
+<div class="d-flex gap-2 mb-3">
+    <select id="caseStatusFilter" class="form-select w-auto" onchange="loadCases()">
+        <option value="">全部状态</option>
+        <option value="pending">待审核</option>
+        <option value="approved">已通过</option>
+        <option value="rejected">已拒绝</option>
+    </select>
+    <select id="riskLevelFilter" class="form-select w-auto" onchange="loadCases()">
+        <option value="">全部等级</option>
+        <option value="high">高风险</option>
+        <option value="medium">中风险</option>
+        <option value="low">低风险</option>
+    </select>
+</div>
+
+<table class="table table-hover bg-white rounded shadow-sm">
+    <thead class="table-light">
+        <tr><th>案件编号</th><th>状态</th><th>风险等级</th><th>评分</th><th>用户</th><th>订单</th><th>审核人</th><th>审核结果</th><th>创建时间</th><th>操作</th></tr>
+    </thead>
+    <tbody id="caseTableBody">
+        <tr><td colspan="10" class="text-center text-muted">加载中...</td></tr>
+    </tbody>
+</table>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    function loadCases() {
+        const s = document.getElementById('caseStatusFilter').value;
+        const l = document.getElementById('riskLevelFilter').value;
+        let url = '/api/risk/cases?';
+        if (s) url += `case_status=${s}&`;
+        if (l) url += `risk_level=${l}&`;
+        fetch(url).then(r => r.json()).then(data => {
+            const tbody = document.getElementById('caseTableBody');
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">暂无案件</td></tr>';
+                return;
+            }
+            const badge = (lvl) => {
+                const map = {low:'bg-success', medium:'bg-warning', high:'bg-danger'};
+                return `<span class="badge ${map[lvl]||'bg-secondary'}">${lvl}</span>`;
+            };
+            tbody.innerHTML = data.map(c => `
+                <tr>
+                    <td><code>#${c.case_id}</code></td>
+                    <td>${c.case_status}</td>
+                    <td>${badge(c.risk_level)}</td>
+                    <td><strong>${c.risk_score}</strong></td>
+                    <td>${c.user_id}</td><td>${c.order_id||'-'}</td>
+                    <td>${c.reviewer_id||'-'}</td><td>${c.review_result||'-'}</td>
+                    <td>${c.created_at}</td>
+                    <td><a href="/cases/${c.case_id}" class="btn btn-sm btn-outline-primary">详情</a></td>
+                </tr>
+            `).join('');
+        });
+    }
+    loadCases();
+</script>
+{% endblock %}

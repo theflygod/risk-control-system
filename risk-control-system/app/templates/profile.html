@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}用户画像 - 电商风险控制{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-person-badge"></i> 用户画像</h4>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="input-group w-50">
+            <input id="userIdInput" class="form-control" placeholder="输入用户编号，如 U10001" value="U10001">
+            <button class="btn btn-primary" onclick="loadProfile()"><i class="bi bi-search"></i> 查询</button>
+        </div>
+    </div>
+</div>
+
+<div id="profileResult">
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-person" style="font-size:3rem;"></i>
+        <p class="mt-2">输入用户编号查询风险画像</p>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    function loadProfile() {
+        const uid = document.getElementById('userIdInput').value.trim();
+        if (!uid) return alert('请输入用户编号');
+        fetch(`/api/risk/users/${uid}/profile`)
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('profileResult').innerHTML = `
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3"><div class="card text-center"><div class="card-body">
+                        <h2>${d.history_order_count}</h2><small>历史订单</small></div></div></div>
+                    <div class="col-md-3"><div class="card text-center"><div class="card-body">
+                        <h2>${d.refund_count}</h2><small>退款次数</small></div></div></div>
+                    <div class="col-md-3"><div class="card text-center"><div class="card-body">
+                        <h2>${d.complaint_count}</h2><small>投诉次数</small></div></div></div>
+                    <div class="col-md-3"><div class="card text-center"><div class="card-body">
+                        <h2>${d.address_count}</h2><small>地址数量</small></div></div></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card"><div class="card-header"><strong>最近风险事件</strong></div>
+                        <div class="card-body">
+                            ${d.recent_risk_events.length ? `<table class="table table-sm"><thead><tr><th>类型</th><th>订单</th><th>时间</th></tr></thead>
+                                <tbody>${d.recent_risk_events.map(e => `<tr><td>${e.event_type}</td><td>${e.order_id||'-'}</td><td>${e.created_at}</td></tr>`).join('')}</tbody></table>`
+                                : '<p class="text-muted">无</p>'}
+                        </div></div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card"><div class="card-header"><strong>关联案件</strong></div>
+                        <div class="card-body">
+                            ${d.related_cases.length ? `<table class="table table-sm"><thead><tr><th>案件ID</th><th>状态</th><th>结果</th></tr></thead>
+                                <tbody>${d.related_cases.map(c => `<tr><td><a href="/cases/${c.case_id}">#${c.case_id}</a></td><td>${c.case_status}</td><td>${c.review_result||'-'}</td></tr>`).join('')}</tbody></table>`
+                                : '<p class="text-muted">无</p>'}
+                        </div></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+</script>
+{% endblock %}

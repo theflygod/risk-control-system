@@ -1,0 +1,7 @@
+/* 电商风险控制系统 — 自定义样式 */
+.fade-in { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.rule-editor { font-family: 'Courier New', monospace; font-size: 0.85rem; min-height: 200px; }
+.htmx-indicator { opacity: 0; transition: opacity 0.2s; }
+.htmx-request .htmx-indicator { opacity: 1; }
+.htmx-request.htmx-indicator { opacity: 1; }

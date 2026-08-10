@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}运营看板 - 电商风险控制{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-bar-chart"></i> 运营看板</h4>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-3" id="statCards">
+    <div class="col-md-3"><div class="card text-center"><div class="card-body"><h2 id="totalEvents">-</h2><small>风险事件总数</small></div></div></div>
+    <div class="col-md-3"><div class="card text-center"><div class="card-body"><h2 id="highRiskRatio">-</h2><small>高风险占比</small></div></div></div>
+    <div class="col-md-3"><div class="card text-center"><div class="card-body"><h2 id="pendingCases">-</h2><small>待审核案件</small></div></div></div>
+    <div class="col-md-3"><div class="card text-center"><div class="card-body"><h2 id="blHitCount">-</h2><small>黑名单命中次数</small></div></div></div>
+</div>
+
+<!-- 图表行 -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card"><div class="card-header"><strong>规则命中排行</strong></div>
+            <div class="card-body"><canvas id="ruleRankChart" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-header"><strong>风险等级分布</strong></div>
+            <div class="card-body"><canvas id="riskPieChart" height="200"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近事件 -->
+<div class="card">
+    <div class="card-header"><strong>最近风险事件</strong></div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead><tr><th>ID</th><th>事件类型</th><th>用户</th><th>订单</th><th>时间</th></tr></thead>
+            <tbody id="recentEvents"></tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    let rankChart = null, pieChart = null;
+
+    function loadDashboard() {
+        fetch('/api/risk/dashboard').then(r => r.json()).then(d => {
+            document.getElementById('totalEvents').textContent = d.total_events;
+            document.getElementById('highRiskRatio').textContent = (d.high_risk_ratio * 100).toFixed(1) + '%';
+            document.getElementById('pendingCases').textContent = d.case_pending_count;
+            document.getElementById('blHitCount').textContent = d.blacklist_hit_count;
+
+            // 最近事件
+            document.getElementById('recentEvents').innerHTML = d.recent_events.length
+                ? d.recent_events.map(e => `<tr><td>${e.event_id}</td><td>${e.event_type}</td><td>${e.user_id}</td><td>${e.order_id||'-'}</td><td>${e.created_at}</td></tr>`).join('')
+                : '<tr><td colspan="5" class="text-muted">暂无</td></tr>';
+
+            // 规则命中排行柱状图
+            if (rankChart) rankChart.destroy();
+            const ctx1 = document.getElementById('ruleRankChart').getContext('2d');
+            rankChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: d.rule_hit_ranking.map(r => r.rule_name),
+                    datasets: [{label: '命中次数', data: d.rule_hit_ranking.map(r => r.hit_count), backgroundColor: '#3b82f6'}]
+                },
+                options: {responsive: true, plugins: {legend: {display: false}}}
+            });
+
+            // 风险等级饼图
+            if (pieChart) pieChart.destroy();
+            const ctx2 = document.getElementById('riskPieChart').getContext('2d');
+            const dist = d.risk_level_distribution;
+            pieChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['低风险','中风险','高风险'],
+                    datasets: [{data: [dist.low||0, dist.medium||0, dist.high||0], backgroundColor: ['#22c55e','#f59e0b','#ef4444']}]
+                },
+            });
+        });
+    }
+
+    loadDashboard();
+</script>
+{% endblock %}

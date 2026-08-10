@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}风险检查 - 电商风险控制{% endblock %}
+{% block content %}
+
+<h4 class="mb-3"><i class="bi bi-search"></i> 风险检查</h4>
+
+<!-- 输入表单 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form hx-post="/api/risk/check" hx-target="#checkResult" hx-indicator="#spinner" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">事件类型</label>
+                <select name="event_type" class="form-select" required>
+                    <option value="order_create">下单 (order_create)</option>
+                    <option value="order_pay">支付 (order_pay)</option>
+                    <option value="after_sale_apply">售后申请 (after_sale_apply)</option>
+                    <option value="logistics_complaint">物流投诉 (logistics_complaint)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">用户编号</label>
+                <input name="user_id" class="form-control" placeholder="U10001" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">订单编号</label>
+                <input name="order_id" class="form-control" placeholder="ORD-001">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">来源ID</label>
+                <input name="source_id" class="form-control" value="WEB-001" required>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-play-fill"></i> 检查
+                </button>
+            </div>
+        </form>
+        <div id="spinner" class="htmx-indicator text-center mt-2">
+            <div class="spinner-border spinner-border-sm text-primary"></div> 分析中...
+        </div>
+    </div>
+</div>
+
+<!-- 结果展示区 -->
+<div id="checkResult"></div>
+
+<!-- 初始提示 -->
+<div id="placeholder" class="text-center text-muted py-5">
+    <i class="bi bi-arrow-up-circle" style="font-size:3rem;"></i>
+    <p class="mt-2">请填写风控事件参数，点击「检查」发起风险评估</p>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+    // HTMX 事件: 请求完成后隐藏占位符
+    document.body.addEventListener('htmx:afterRequest', function(e) {
+        if (e.detail.target.id === 'checkResult' && e.detail.successful) {
+            document.getElementById('placeholder').style.display = 'none';
+        }
+    });
+</script>
+{% endblock %}
